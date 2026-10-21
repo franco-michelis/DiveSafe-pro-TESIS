@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiveSafe Pro · Prototipo</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.17.0/dist/tabler-icons.min.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  .app { max-width: 1600px; margin: 0 auto; }
+
+  /* NAV */
+  .nav {
+    background: #161b22;
+    border-bottom: 0.5px solid #30363d;
+    padding: 0 32px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 16px; font-weight: 500; color: #e6edf3;
+  }
+  .nav-logo-icon {
+    width: 32px; height: 32px; background: #1f6feb;
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  }
+  .nav-logo-icon i { color: #fff; font-size: 18px; }
+  .nav-right { display: flex; align-items: center; gap: 16px; }
+  .nav-user {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: #8b949e;
+  }
+  .nav-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #1f6feb; display: flex; align-items: center;
+    justify-content: center; font-size: 12px; font-weight: 500; color: #fff;
+  }
+  .nav-date {
+    font-size: 13px; color: #8b949e;
+    padding: 6px 12px; background: #0d1117;
+    border: 0.5px solid #30363d; border-radius: 6px;
+  }
+
+  /* SCREENS */
+  .screen { display: none; padding: 28px 32px; }
+  .screen.active { display: block; }
+
+  /* ── SCREEN 1: MENU ── */
+  .weather-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .weather-card {
+    background: #161b22;
+    border: 0.5px solid #30363d;
+    border-radius: 12px;
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    position: relative;
+    min-height: 130px;
+  }
+  .weather-card:hover {
+    transform: translateY(-3px);
+    border-color: #1f6feb;
+    background: #1a2332;
+    z-index: 10;
+  }
+  .wc-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .wc-label {
+    font-size: 11px; color: #8b949e; text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .wc-label i { font-size: 15px; }
+  .wc-value {
+    font-size: 28px; font-weight: 500; color: #e6edf3; line-height: 1;
+    margin-bottom: 8px;
+  }
+  .wc-value .wc-unit { font-size: 14px; color: #8b949e; font-weight: 400; margin-left: 3px; }
+  .wc-sub {
+    font-size: 12px; color: #8b949e;
+  }
+  .wc-detail {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: #1a2332;
+    border-top: 0.5px solid #1f6feb;
+    padding: 0 20px;
+    font-size: 11px; color: #8b949e;
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.25s ease, padding 0.25s ease;
+    border-radius: 0 0 12px 12px;
+  }
+  .weather-card:hover .wc-detail {
+    max-height: 100px;
+    padding: 12px 20px 14px;
+  }
+  .wc-detail-row { display: flex; justify-content: space-between; margin-bottom: 4px; gap: 10px; }
+  .wc-detail-row span:last-child { color: #e6edf3; font-weight: 500; text-align: right; }
+
+  .badge-ok { background: #1a3a2a; color: #3fb950; border: 0.5px solid #238636; border-radius: 5px; padding: 2px 8px; font-size: 11px; font-weight: 500; }
+  .badge-warn { background: #3a2e1a; color: #d29922; border: 0.5px solid #9e6a03; border-radius: 5px; padding: 2px 8px; font-size: 11px; font-weight: 500; }
+  .badge-danger { background: #3a1a1a; color: #f85149; border: 0.5px solid #b62324; border-radius: 5px; padding: 2px 8px; font-size: 11px; font-weight: 500; }
+  .badge-neutral { background: #21262d; color: #8b949e; border: 0.5px solid #30363d; border-radius: 5px; padding: 2px 8px; font-size: 11px; font-weight: 500; }
+
+  .conditions-banner {
+    background: #1a3a2a;
+    border: 0.5px solid #238636;
+    border-radius: 12px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .conditions-banner i { font-size: 22px; color: #3fb950; }
+  .conditions-banner .cb-title { font-size: 15px; font-weight: 500; color: #3fb950; }
+  .conditions-banner .cb-sub { font-size: 12px; color: #8b949e; margin-top: 3px; }
+
+  .menu-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .action-card {
+    background: #161b22;
+    border: 0.5px solid #30363d;
+    border-radius: 14px;
+    padding: 24px 26px;
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s, transform 0.15s;
+    display: flex; align-items: center; gap: 18px;
+  }
+  .action-card:hover {
+    border-color: #1f6feb;
+    background: #1a2332;
+    transform: translateY(-2px);
+  }
+  .ac-icon {
+    width: 52px; height: 52px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .ac-icon-blue { background: #1f3a5f; }
+  .ac-icon-blue i { color: #58a6ff; font-size: 26px; }
+  .ac-icon-amber { background: #3a2e1a; }
+  .ac-icon-amber i { color: #d29922; font-size: 26px; }
+  .ac-text { flex: 1; }
+  .ac-title { font-size: 16px; font-weight: 500; color: #e6edf3; margin-bottom: 4px; }
+  .ac-desc { font-size: 13px; color: #8b949e; line-height: 1.5; }
+  .ac-arrow { color: #8b949e; font-size: 20px; }
+
+  /* ── SCREEN 2: PLANIFICAR ── */
+  .screen-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 22px;
+  }
+  .back-btn {
+    background: #21262d; border: 0.5px solid #30363d; border-radius: 6px;
+    padding: 7px 12px; color: #8b949e; cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; gap: 5px;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+  }
+  .back-btn:hover { background: #30363d; color: #e6edf3; }
+  .screen-header h2 { font-size: 19px; font-weight: 500; color: #e6edf3; }
+
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .form-section {
+    background: #161b22;
+    border: 0.5px solid #30363d;
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .form-section.span-2 { grid-column: span 2; }
+  .form-section.span-3 { grid-column: span 3; }
+  .form-section.full { grid-column: 1 / -1; }
+  .form-section h3 {
+    font-size: 12px; font-weight: 500; color: #8b949e;
+    text-transform: uppercase; letter-spacing: 0.4px;
+    margin-bottom: 14px; padding-bottom: 12px;
+    border-bottom: 0.5px solid #21262d;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .form-section h3 i { font-size: 15px; }
+
+  .form-row { margin-bottom: 12px; }
+  .form-row label { display: block; font-size: 11px; color: #8b949e; margin-bottom: 5px; }
+  .form-row input, .form-row select, .form-row textarea {
+    width: 100%;
+    background: #0d1117;
+    border: 0.5px solid #30363d;
+    border-radius: 6px;
+    color: #e6edf3;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+    border-color: #1f6feb;
+  }
+  .form-row select option { background: #161b22; }
+  .form-row textarea { resize: vertical; min-height: 60px; }
+
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+
+  /* Equipo adicional */
+  .equip-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
+  }
+  .equip-check {
+    display: flex; align-items: center; gap: 8px;
+    background: #0d1117; border: 0.5px solid #30363d;
+    border-radius: 6px; padding: 7px 10px;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    font-size: 12px; color: #e6edf3;
+  }
+  .equip-check:hover { border-color: #1f6feb; }
+  .equip-check input[type="checkbox"] { accent-color: #1f6feb; width: 14px; height: 14px; cursor: pointer; }
+  .equip-check.checked { background: #1a2332; border-color: #1f6feb; }
+  .equip-check i { font-size: 14px; color: #8b949e; }
+
+  .weather-mini {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  }
+  .wm-item {
+    background: #0d1117;
+    border: 0.5px solid #30363d;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .wm-item .wm-label { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .wm-item .wm-val { font-size: 13px; font-weight: 500; color: #e6edf3; margin-bottom: 5px; }
+
+  .evaluate-bar {
+    background: #161b22;
+    border: 0.5px solid #30363d;
+    border-radius: 12px;
+    padding: 16px 22px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .evaluate-bar-info { font-size: 13px; color: #8b949e; line-height: 1.5; }
+  .evaluate-bar-info strong { color: #e6edf3; font-weight: 500; }
+  .evaluate-btn {
+    background: #1f6feb;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    padding: 11px 26px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; gap: 8px;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .evaluate-btn:hover { background: #388bfd; }
+  .evaluate-btn:active { transform: scale(0.98); }
+
+  /* Risk result panel */
+  .risk-panel {
+    background: #161b22;
+    border: 0.5px solid #30363d;
+    border-radius: 12px;
+    padding: 22px;
+    margin-top: 14px;
+    display: none;
+  }
+  .risk-panel.show { display: block; }
+  .risk-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .risk-header h3 { font-size: 15px; font-weight: 500; color: #e6edf3; }
+  .risk-score-high { background: #3a1a1a; color: #f85149; border: 0.5px solid #b62324; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 500; }
+  .risk-score-med { background: #3a2e1a; color: #d29922; border: 0.5px solid #9e6a03; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 500; }
+  .risk-score-low { background: #1a3a2a; color: #3fb950; border: 0.5px solid #238636; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 500; }
+
+  .alerts-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .alert-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: #3a2e1a;
+    border: 0.5px solid #9e6a03;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 12px; color: #d29922; line-height: 1.5;
+  }
+  .alert-item i { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+  .alert-item.info { background: #1a2d3a; border-color: #1f6feb; color: #58a6ff; }
+  .alert-item.info i { color: #58a6ff; }
+
+  .justification-area {
+    margin-top: 14px;
+    background: #3a1a1a;
+    border: 0.5px solid #b62324;
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .justification-area p { font-size: 12px; color: #f85149; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .justification-area textarea {
+    width: 100%; background: #0d1117; border: 0.5px solid #b62324;
+    border-radius: 6px; color: #e6edf3; padding: 8px 10px;
+    font-size: 13px; font-family: inherit; outline: none; resize: vertical; min-height: 60px;
+  }
+  .save-btn {
+    background: #238636;
+    border: none; border-radius: 8px; color: #fff;
+    padding: 10px 22px; font-size: 13px; font-weight: 500;
+    cursor: pointer; margin-top: 10px; font-family: inherit;
+    transition: background 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .save-btn:hover { background: #2ea043; }
+
+  /* ── SCREEN 3: AUDITAR ── */
+  .filters-bar {
+    display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center;
+  }
+  .filters-bar input, .filters-bar select {
+    background: #161b22; border: 0.5px solid #30363d;
+    border-radius: 6px; color: #e6edf3;
+    padding: 8px 12px; font-size: 13px; font-family: inherit;
+    outline: none;
+  }
+  .filters-bar input { flex: 1; min-width: 200px; }
+  .filters-bar input::placeholder { color: #8b949e; }
+
+  .records-table {
+    background: #161b22;
+    border: 0.5px solid #30363d;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .rt-header {
+    display: grid;
+    grid-template-columns: 110px 1.8fr 1.2fr 130px 110px 130px;
+    padding: 12px 22px;
+    background: #21262d;
+    border-bottom: 0.5px solid #30363d;
+    font-size: 11px; color: #8b949e;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .rt-row {
+    display: grid;
+    grid-template-columns: 110px 1.8fr 1.2fr 130px 110px 130px;
+    padding: 14px 22px;
+    border-bottom: 0.5px solid #21262d;
+    align-items: center;
+    transition: background 0.12s;
+    gap: 10px;
+  }
+  .rt-row:last-child { border-bottom: none; }
+  .rt-row:hover { background: #1a2332; }
+  .rt-row .rt-id { font-size: 13px; color: #8b949e; font-family: ui-monospace, "SF Mono", monospace; }
+  .rt-row .rt-site { font-size: 14px; color: #e6edf3; font-weight: 500; }
+  .rt-row .rt-site-sub { font-size: 12px; color: #8b949e; margin-top: 2px; }
+  .rt-row .rt-date { font-size: 13px; color: #8b949e; }
+  .rt-row .rt-instructor { font-size: 13px; color: #e6edf3; }
+
+  .audit-btn {
+    background: #21262d; border: 0.5px solid #30363d;
+    border-radius: 6px; color: #8b949e;
+    padding: 6px 12px; font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 5px;
+    font-family: inherit;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    width: fit-content;
+  }
+  .audit-btn:hover { border-color: #1f6feb; color: #58a6ff; background: #1a2332; }
+
+  /* AUDIT DETAIL */
+  .audit-detail {
+    display: none;
+    background: #161b22;
+    border: 0.5px solid #30363d;
+    border-radius: 12px;
+    padding: 22px;
+    margin-top: 14px;
+  }
+  .audit-detail.show { display: block; }
+  .ad-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 18px; padding-bottom: 16px;
+    border-bottom: 0.5px solid #30363d;
+  }
+  .ad-header h3 { font-size: 16px; font-weight: 500; color: #e6edf3; }
+  .ad-header p { font-size: 12px; color: #8b949e; margin-top: 4px; }
+  .ad-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 18px; }
+  .ad-item { background: #0d1117; border-radius: 8px; padding: 10px 12px; border: 0.5px solid #21262d; }
+  .ad-item-label { font-size: 10px; color: #8b949e; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .ad-item-val { font-size: 13px; color: #e6edf3; font-weight: 500; }
+
+  .timeline { margin-top: 14px; }
+  .timeline-item {
+    display: flex; gap: 12px; margin-bottom: 12px;
+  }
+  .tl-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    margin-top: 4px;
+  }
+  .tl-dot-warn { background: #d29922; }
+  .tl-dot-info { background: #1f6feb; }
+  .tl-dot-ok { background: #3fb950; }
+  .tl-content { font-size: 12px; color: #8b949e; line-height: 1.5; }
+  .tl-content strong { color: #e6edf3; font-weight: 500; }
+
+  .close-btn {
+    background: #21262d; border: 0.5px solid #30363d;
+    border-radius: 6px; color: #8b949e;
+    padding: 6px 11px; font-size: 12px; cursor: pointer;
+    font-family: inherit; transition: background 0.15s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .close-btn:hover { background: #30363d; color: #e6edf3; }
+
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px;
+  }
+  .stat-card {
+    background: #161b22; border: 0.5px solid #30363d; border-radius: 12px;
+    padding: 14px 18px;
+  }
+  .stat-card .sc-label { font-size: 12px; color: #8b949e; margin-bottom: 6px; }
+  .stat-card .sc-val { font-size: 24px; font-weight: 500; color: #e6edf3; }
+  .stat-card .sc-sub { font-size: 11px; color: #8b949e; margin-top: 3px; }
+
+  /* Responsive para pantallas más chicas */
+  @media (max-width: 1400px) {
+    .weather-grid { grid-template-columns: repeat(4, 1fr); }
+    .plan-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 1000px) {
+    .weather-grid { grid-template-columns: repeat(3, 1fr); }
+    .plan-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-section.span-3, .form-section.span-2 { grid-column: span 2; }
+  }
+  @media (max-width: 700px) {
+    .weather-grid { grid-template-columns: repeat(2, 1fr); }
+    .plan-grid { grid-template-columns: 1fr; }
+    .form-section.span-3, .form-section.span-2 { grid-column: 1; }
+    .menu-actions { grid-template-columns: 1fr; }
+    .screen { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-logo">
+      <div class="nav-logo-icon"><i class="ti ti-ripple" aria-hidden="true"></i></div>
+      DiveSafe Pro
+    </div>
+    <div class="nav-right">
+      <div class="nav-date">Mar 17 mayo · Puerto Madryn</div>
+      <div class="nav-user">
+        <div class="nav-avatar">FM</div>
+        <span>Franco Michelis · Centro Patagonia Dive</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- SCREEN 1: MENU -->
+  <div class="screen active" id="screen-menu">
+    <div class="weather-grid">
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-sun" aria-hidden="true"></i> Clima</span>
+          <span class="badge-ok">Despejado</span>
+        </div>
+        <div class="wc-value">Soleado</div>
+        <div class="wc-sub">Sin pronóstico de tormentas</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Pronóstico 6 hs</span><span>Estable</span></div>
+          <div class="wc-detail-row"><span>Presión atm.</span><span>1018 hPa</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>SMN</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-temperature" aria-hidden="true"></i> Temp. ambiente</span>
+          <span class="badge-ok">Templada</span>
+        </div>
+        <div class="wc-value">16<span class="wc-unit">°C</span></div>
+        <div class="wc-sub">Sensación térmica: 14 °C</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Mín / Máx hoy</span><span>11 / 19 °C</span></div>
+          <div class="wc-detail-row"><span>Humedad</span><span>68 %</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>SMN</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-droplet" aria-hidden="true"></i> Temp. agua</span>
+          <span class="badge-warn">Fría</span>
+        </div>
+        <div class="wc-value">14<span class="wc-unit">°C</span></div>
+        <div class="wc-sub">Sup: 15 °C · Fondo: 12 °C</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Traje recomendado</span><span>7 mm mín.</span></div>
+          <div class="wc-detail-row"><span>Riesgo hipotermia</span><span>Medio (&gt; 45 min)</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>NOAA SST</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-wind" aria-hidden="true"></i> Viento</span>
+          <span class="badge-ok">Normal</span>
+        </div>
+        <div class="wc-value">18<span class="wc-unit">km/h</span></div>
+        <div class="wc-sub">Dirección NNE</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Ráfagas máx.</span><span>24 km/h</span></div>
+          <div class="wc-detail-row"><span>Umbral riesgo medio</span><span>&gt; 25 km/h</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>SMN / Windy</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-cloud" aria-hidden="true"></i> Cobertura nubes</span>
+          <span class="badge-ok">Baja</span>
+        </div>
+        <div class="wc-value">22<span class="wc-unit">%</span></div>
+        <div class="wc-sub">Nubes dispersas en altura</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Tipo</span><span>Cirros</span></div>
+          <div class="wc-detail-row"><span>Tendencia 3 hs</span><span>↘ Disminuye</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>OpenWeather</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-cloud-rain" aria-hidden="true"></i> Precipitación</span>
+          <span class="badge-ok">Sin lluvia</span>
+        </div>
+        <div class="wc-value">5<span class="wc-unit">%</span></div>
+        <div class="wc-sub">Probabilidad próximas 6 hs</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Acumulado 24 hs</span><span>0 mm</span></div>
+          <div class="wc-detail-row"><span>Próximo evento</span><span>Jueves 19</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>SMN</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-waves" aria-hidden="true"></i> Oleaje</span>
+          <span class="badge-ok">Calmo</span>
+        </div>
+        <div class="wc-value">0.8<span class="wc-unit">m</span></div>
+        <div class="wc-sub">Período: 7 s</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Altura máx. esperada</span><span>1.1 m</span></div>
+          <div class="wc-detail-row"><span>Umbral riesgo medio</span><span>&gt; 1.5 m</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>Prefectura</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-current-location" aria-hidden="true"></i> Corriente</span>
+          <span class="badge-ok">Suave</span>
+        </div>
+        <div class="wc-value">0.4<span class="wc-unit">nud</span></div>
+        <div class="wc-sub">Dirección: E → O</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Máx. del día</span><span>0.6 nud · 14:00 hs</span></div>
+          <div class="wc-detail-row"><span>Umbral riesgo alto</span><span>&gt; 1.0 nud</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>NOAA</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-eye" aria-hidden="true"></i> Visibilidad</span>
+          <span class="badge-ok">Buena</span>
+        </div>
+        <div class="wc-value">6<span class="wc-unit">m</span></div>
+        <div class="wc-sub">Rango esperado: 5–7 m</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Histórico mayo</span><span>4–8 m</span></div>
+          <div class="wc-detail-row"><span>Umbral riesgo alto</span><span>&lt; 5 m</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>Hist. sitio</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-anchor" aria-hidden="true"></i> Marea</span>
+          <span class="badge-warn">Atención</span>
+        </div>
+        <div class="wc-value">2.4<span class="wc-unit">m</span></div>
+        <div class="wc-sub">Subiendo · Pleamar 13:40 hs</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Bajamar</span><span>0.6 m · 07:20 hs</span></div>
+          <div class="wc-detail-row"><span>Próx. pleamar</span><span>2.9 m · 13:40 hs</span></div>
+          <div class="wc-detail-row"><span>Fuente</span><span>NOAA / Pref.</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-sunrise" aria-hidden="true"></i> Salida del sol</span>
+          <span class="badge-neutral">Hoy</span>
+        </div>
+        <div class="wc-value">07:42<span class="wc-unit">hs</span></div>
+        <div class="wc-sub">Crepúsculo náutico: 07:14</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Posición</span><span>72° E</span></div>
+          <div class="wc-detail-row"><span>Mañana</span><span>07:43 hs</span></div>
+          <div class="wc-detail-row"><span>Horas de luz</span><span>9 h 51 min</span></div>
+        </div>
+      </div>
+
+      <div class="weather-card">
+        <div class="wc-top">
+          <span class="wc-label"><i class="ti ti-sunset" aria-hidden="true"></i> Puesta del sol</span>
+          <span class="badge-neutral">Hoy</span>
+        </div>
+        <div class="wc-value">17:33<span class="wc-unit">hs</span></div>
+        <div class="wc-sub">Crepúsculo náutico: 18:01</div>
+        <div class="wc-detail">
+          <div class="wc-detail-row"><span>Posición</span><span>288° O</span></div>
+          <div class="wc-detail-row"><span>Última inmersión</span><span>antes 16:30 hs</span></div>
+          <div class="wc-detail-row"><span>Mañana</span><span>17:32 hs</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conditions-banner">
+      <i class="ti ti-circle-check" aria-hidden="true"></i>
+      <div>
+        <div class="cb-title">Condiciones climáticas óptimas para bucear</div>
+        <div class="cb-sub">Todos los parámetros dentro de rango seguro · Actualizado hace 8 min · Sitio de referencia: Banco Justicia</div>
+      </div>
+    </div>
+
+    <div class="menu-actions">
+      <div class="action-card" onclick="showScreen('screen-plan')">
+        <div class="ac-icon ac-icon-blue"><i class="ti ti-clipboard-list" aria-hidden="true"></i></div>
+        <div class="ac-text">
+          <div class="ac-title">Planificar inmersión</div>
+          <div class="ac-desc">Cargá los datos de la inmersión y obtené una evaluación automática de riesgo antes de entrar al agua.</div>
+        </div>
+        <div class="ac-arrow"><i class="ti ti-arrow-right" aria-hidden="true"></i></div>
+      </div>
+      <div class="action-card" onclick="showScreen('screen-audit')">
+        <div class="ac-icon ac-icon-amber"><i class="ti ti-shield-search" aria-hidden="true"></i></div>
+        <div class="ac-text">
+          <div class="ac-title">Auditar registros</div>
+          <div class="ac-desc">Revisá el historial de planificaciones, evaluaciones de riesgo y decisiones registradas por los instructores.</div>
+        </div>
+        <div class="ac-arrow"><i class="ti ti-arrow-right" aria-hidden="true"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: PLANIFICAR -->
+  <div class="screen" id="screen-plan">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('screen-menu')"><i class="ti ti-arrow-left" aria-hidden="true"></i> Volver</button>
+      <h2>Planificar inmersión</h2>
+    </div>
+
+    <div class="plan-grid">
+      <!-- Sitio y tipo -->
+      <div class="form-section">
+        <h3><i class="ti ti-map-pin" aria-hidden="true"></i> Sitio y tipo</h3>
+        <div class="form-row">
+          <label>Sitio de buceo</label>
+          <select><option>Banco Justicia</option><option>El Doradillo</option><option>Punta Pirámide</option><option>Isla Escondida</option></select>
+        </div>
+        <div class="form-row">
+          <label>Tipo de inmersión</label>
+          <select><option>Buceo recreativo</option><option>Curso de iniciación</option><option>Advanced OW</option><option>Divemaster</option></select>
+        </div>
+        <div class="form-row">
+          <label>Tipo de entrada al agua</label>
+          <select><option>Desde la costa (shore entry)</option><option>Desde la embarcación (giant stride)</option><option>Desde la embarcación (back roll)</option><option>Descenso negativo</option></select>
+        </div>
+        <div class="form-row-2">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Prof. máx. esperada (m)</label>
+            <input type="number" value="18" min="1" max="40" />
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Tiempo estimado (min)</label>
+            <input type="number" value="45" min="5" max="120" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Fecha y hora de entrada al agua</label>
+          <input type="datetime-local" value="2026-05-17T10:30" />
+        </div>
+      </div>
+
+      <!-- Instructor y alumnos -->
+      <div class="form-section">
+        <h3><i class="ti ti-users" aria-hidden="true"></i> Instructor y alumnos</h3>
+        <div class="form-row">
+          <label>Instructor a cargo</label>
+          <select><option>Franco Michelis (Divemaster)</option><option>Laura Suárez (PADI Instructor)</option><option>Rodrigo Ávila (SNSI Instructor)</option></select>
+        </div>
+        <div class="form-row-2">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Cantidad de alumnos</label>
+            <input type="number" value="4" min="1" max="12" />
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Ratio instructor:alumno</label>
+            <select><option>1:2</option><option>1:3</option><option selected>1:4</option><option>1:5</option><option>1:6</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Certificación promedio</label>
+          <select><option>Sin certificación (curso)</option><option selected>Open Water</option><option>Advanced OW</option><option>Rescue Diver</option></select>
+        </div>
+        <div class="form-row">
+          <label>Inmersiones previas promedio</label>
+          <select><option>0–5 inmersiones</option><option selected>6–20 inmersiones</option><option>21–50 inmersiones</option><option>+50 inmersiones</option></select>
+        </div>
+        <div class="form-row">
+          <label>Asistente / Divemaster de apoyo</label>
+          <select><option>Ninguno</option><option selected>Tomás Pereyra (DM)</option><option>Mariana López (Asistente)</option></select>
+        </div>
+      </div>
+
+      <!-- Equipo y tanque -->
+      <div class="form-section">
+        <h3><i class="ti ti-scuba-mask" aria-hidden="true"></i> Equipo y tanque</h3>
+        <div class="form-row-2">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Tamaño del tanque</label>
+            <select><option>10 L</option><option selected>12 L</option><option>15 L</option><option>2 × 12 L (dobles)</option></select>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Mezcla del tanque</label>
+            <select><option selected>Aire (21% O₂)</option><option>Nitrox 32%</option><option>Nitrox 36%</option><option>Trimix</option></select>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Presión inicial (bar)</label>
+            <input type="number" value="200" min="100" max="300" />
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Reserva mínima (bar)</label>
+            <input type="number" value="50" min="30" max="100" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Tipo de traje</label>
+          <select><option>Húmedo 3 mm</option><option>Húmedo 5 mm</option><option selected>Húmedo 7 mm</option><option>Semi-seco</option><option>Seco</option></select>
+        </div>
+        <div class="form-row" style="margin-bottom:6px">
+          <label>Equipo adicional</label>
+        </div>
+        <div class="equip-grid">
+          <label class="equip-check checked"><input type="checkbox" checked /><i class="ti ti-balloon" aria-hidden="true"></i> Boya SMB</label>
+          <label class="equip-check checked"><input type="checkbox" checked /><i class="ti ti-device-watch" aria-hidden="true"></i> Computadora</label>
+          <label class="equip-check checked"><input type="checkbox" checked /><i class="ti ti-bulb" aria-hidden="true"></i> Linterna</label>
+          <label class="equip-check"><input type="checkbox" /><i class="ti ti-tools-kitchen-2" aria-hidden="true"></i> Cuchillo</label>
+          <label class="equip-check"><input type="checkbox" /><i class="ti ti-camera" aria-hidden="true"></i> Cámara</label>
+          <label class="equip-check checked"><input type="checkbox" checked /><i class="ti ti-bell" aria-hidden="true"></i> Silbato</label>
+        </div>
+      </div>
+
+      <!-- Notas adicionales -->
+      <div class="form-section">
+        <h3><i class="ti ti-notes" aria-hidden="true"></i> Notas adicionales</h3>
+        <div class="form-row">
+          <label>Plan de buceo / observaciones del instructor</label>
+          <textarea placeholder="Ej: Descenso por la línea de fondeo hasta el primer arrecife. Recorrido N-S siguiendo la pared hasta los 18 m. Ascenso con parada de seguridad de 3 min a 5 m. Punto de reunión: bote..." style="min-height: 180px;"></textarea>
+        </div>
+        <div class="form-row">
+          <label>Briefing realizado con alumnos</label>
+          <select><option>Sí — completo</option><option>Sí — abreviado (grupo experimentado)</option><option>Pendiente</option></select>
+        </div>
+      </div>
+
+      <!-- Condiciones ambientales -->
+      <div class="form-section full">
+        <h3><i class="ti ti-cloud" aria-hidden="true"></i> Condiciones ambientales al momento (datos en tiempo real)</h3>
+        <div class="weather-mini">
+          <div class="wm-item">
+            <div class="wm-label">Viento</div>
+            <div class="wm-val">18 km/h NNE</div>
+            <span class="badge-ok">Normal</span>
+          </div>
+          <div class="wm-item">
+            <div class="wm-label">Corriente</div>
+            <div class="wm-val">0.4 nud E→O</div>
+            <span class="badge-ok">Suave</span>
+          </div>
+          <div class="wm-item">
+            <div class="wm-label">Visibilidad</div>
+            <div class="wm-val">6 m</div>
+            <span class="badge-ok">Buena</span>
+          </div>
+          <div class="wm-item">
+            <div class="wm-label">Marea</div>
+            <div class="wm-val">2.4 m subiendo</div>
+            <span class="badge-warn">Atención</span>
+          </div>
+          <div class="wm-item">
+            <div class="wm-label">Oleaje</div>
+            <div class="wm-val">0.8 m / 7 s</div>
+            <span class="badge-ok">Calmo</span>
+          </div>
+          <div class="wm-item">
+            <div class="wm-label">Temp. agua</div>
+            <div class="wm-val">14 °C</div>
+            <span class="badge-warn">Fría</span>
+          </div>
+          <div class="wm-item">
+            <div class="wm-label">Clima</div>
+            <div class="wm-val">Soleado 16 °C</div>
+            <span class="badge-ok">Estable</span>
+          </div>
+          <div class="wm-item">
+            <div class="wm-label">Última actualización</div>
+            <div class="wm-val">Hace 8 min</div>
+            <span class="badge-neutral">Auto</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="evaluate-bar">
+      <div class="evaluate-bar-info">
+        Una vez completados los datos, el sistema cruza la información ingresada con las condiciones ambientales en tiempo real y los estándares de <strong>PADI, SNSI y NAUI</strong> para asignar un nivel de riesgo.
+      </div>
+      <button class="evaluate-btn" onclick="showRisk()">
+        <i class="ti ti-shield-check" aria-hidden="true"></i>
+        Evaluar riesgo
+      </button>
+    </div>
+
+    <div class="risk-panel" id="risk-panel">
+      <div class="risk-header">
+        <h3>Evaluación de riesgo automática</h3>
+        <span class="risk-score-med">RIESGO MEDIO</span>
+      </div>
+      <div class="alerts-grid">
+        <div class="alert-item">
+          <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+          <div><strong>Marea en ascenso:</strong> Pleamar a las 13:40. El tiempo estimado (45 min desde 10:30) se superpone parcialmente con el pico de corriente. Recomendación: reducir tiempo en fondo o adelantar la entrada.</div>
+        </div>
+        <div class="alert-item">
+          <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+          <div><strong>Temperatura del agua:</strong> 14 °C registrados. Para inmersiones > 45 min se recomienda verificar uso de traje 7 mm en todos los buzos. Traje seleccionado: ✓ 7 mm.</div>
+        </div>
+        <div class="alert-item info">
+          <i class="ti ti-info-circle" aria-hidden="true"></i>
+          <div><strong>Profundidad y certificación:</strong> 18 m con grupo Open Water es correcto (límite PADI/SNSI: 18 m). Sin margen de exceso detectado.</div>
+        </div>
+        <div class="alert-item info">
+          <i class="ti ti-info-circle" aria-hidden="true"></i>
+          <div><strong>Ratio instructor:alumno:</strong> 1:4 cumple con estándar PADI para Open Water (máx. 1:8 con condiciones óptimas, 1:4 recomendado en aguas frías).</div>
+        </div>
+      </div>
+
+      <div class="justification-area">
+        <p><i class="ti ti-alert-circle" aria-hidden="true"></i> Existen advertencias activas. El instructor debe justificar su decisión. La justificación queda registrada de forma inmutable.</p>
+        <textarea placeholder="Ej: Se verificó con todos los alumnos el uso de traje de 7mm. La inmersión se planificó para finalizar antes de las 11:30, evitando el pico de corriente..."></textarea>
+        <button class="save-btn"><i class="ti ti-lock" aria-hidden="true"></i> Registrar planificación</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: AUDITAR -->
+  <div class="screen" id="screen-audit">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('screen-menu')"><i class="ti ti-arrow-left" aria-hidden="true"></i> Volver</button>
+      <h2>Auditar registros</h2>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="sc-label">Total inmersiones</div>
+        <div class="sc-val">142</div>
+        <div class="sc-sub">Temporada 2025–26</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-label">Riesgo alto</div>
+        <div class="sc-val" style="color:#f85149">8</div>
+        <div class="sc-sub">Con justificación</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-label">Riesgo medio</div>
+        <div class="sc-val" style="color:#d29922">34</div>
+        <div class="sc-sub">Alertas emitidas</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-label">Sin incidentes</div>
+        <div class="sc-val" style="color:#3fb950">139</div>
+        <div class="sc-sub">97.9 % del total</div>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <input type="text" placeholder="Buscar por sitio, instructor o ID..." />
+      <select>
+        <option>Todos los riesgos</option>
+        <option>Riesgo bajo</option>
+        <option>Riesgo medio</option>
+        <option>Riesgo alto</option>
+      </select>
+      <select>
+        <option>Todos los instructores</option>
+        <option>Franco Michelis</option>
+        <option>Laura Suárez</option>
+        <option>Rodrigo Ávila</option>
+      </select>
+    </div>
+
+    <div class="records-table">
+      <div class="rt-header">
+        <span>ID</span>
+        <span>Sitio</span>
+        <span>Instructor</span>
+        <span>Fecha</span>
+        <span>Riesgo</span>
+        <span>Acción</span>
+      </div>
+      <div class="rt-row">
+        <span class="rt-id">#INM-142</span>
+        <div><div class="rt-site">Banco Justicia</div><div class="rt-site-sub">Recreativo · 4 alumnos · 18 m</div></div>
+        <span class="rt-instructor">Franco Michelis</span>
+        <span class="rt-date">17/05/2026</span>
+        <span><span class="badge-warn">Medio</span></span>
+        <button class="audit-btn" onclick="showAudit()"><i class="ti ti-file-search" aria-hidden="true"></i> Auditar</button>
+      </div>
+      <div class="rt-row">
+        <span class="rt-id">#INM-141</span>
+        <div><div class="rt-site">El Doradillo</div><div class="rt-site-sub">Advanced OW · 3 alumnos · 24 m</div></div>
+        <span class="rt-instructor">Laura Suárez</span>
+        <span class="rt-date">16/05/2026</span>
+        <span><span class="badge-ok">Bajo</span></span>
+        <button class="audit-btn"><i class="ti ti-file-search" aria-hidden="true"></i> Auditar</button>
+      </div>
+      <div class="rt-row">
+        <span class="rt-id">#INM-140</span>
+        <div><div class="rt-site">Punta Pirámide</div><div class="rt-site-sub">Iniciación · 6 alumnos · 12 m</div></div>
+        <span class="rt-instructor">Rodrigo Ávila</span>
+        <span class="rt-date">15/05/2026</span>
+        <span><span class="badge-danger">Alto</span></span>
+        <button class="audit-btn"><i class="ti ti-file-search" aria-hidden="true"></i> Auditar</button>
+      </div>
+      <div class="rt-row">
+        <span class="rt-id">#INM-139</span>
+        <div><div class="rt-site">Isla Escondida</div><div class="rt-site-sub">Recreativo · 5 alumnos · 20 m</div></div>
+        <span class="rt-instructor">Laura Suárez</span>
+        <span class="rt-date">14/05/2026</span>
+        <span><span class="badge-ok">Bajo</span></span>
+        <button class="audit-btn"><i class="ti ti-file-search" aria-hidden="true"></i> Auditar</button>
+      </div>
+      <div class="rt-row">
+        <span class="rt-id">#INM-138</span>
+        <div><div class="rt-site">Banco Justicia</div><div class="rt-site-sub">Divemaster · 2 alumnos · 30 m</div></div>
+        <span class="rt-instructor">Franco Michelis</span>
+        <span class="rt-date">13/05/2026</span>
+        <span><span class="badge-warn">Medio</span></span>
+        <button class="audit-btn"><i class="ti ti-file-search" aria-hidden="true"></i> Auditar</button>
+      </div>
+    </div>
+
+    <div class="audit-detail" id="audit-detail">
+      <div class="ad-header">
+        <div>
+          <h3>Auditoría — #INM-142 · Banco Justicia</h3>
+          <p>Planificado por Franco Michelis · 17/05/2026 10:15 hs · Hash de integridad: a3f9c1…</p>
+        </div>
+        <button class="close-btn" onclick="closeAudit()"><i class="ti ti-x" aria-hidden="true"></i> Cerrar</button>
+      </div>
+
+      <div class="ad-grid">
+        <div class="ad-item"><div class="ad-item-label">Tipo</div><div class="ad-item-val">Recreativo</div></div>
+        <div class="ad-item"><div class="ad-item-label">Entrada al agua</div><div class="ad-item-val">Giant stride</div></div>
+        <div class="ad-item"><div class="ad-item-label">Prof. máx.</div><div class="ad-item-val">18 m</div></div>
+        <div class="ad-item"><div class="ad-item-label">Tiempo estimado</div><div class="ad-item-val">45 min</div></div>
+        <div class="ad-item"><div class="ad-item-label">Alumnos</div><div class="ad-item-val">4 · Open Water</div></div>
+        <div class="ad-item"><div class="ad-item-label">Ratio</div><div class="ad-item-val">1:4</div></div>
+        <div class="ad-item"><div class="ad-item-label">Tanque / mezcla</div><div class="ad-item-val">12 L · Aire 21%</div></div>
+        <div class="ad-item"><div class="ad-item-label">Traje</div><div class="ad-item-val">Húmedo 7 mm</div></div>
+        <div class="ad-item"><div class="ad-item-label">Riesgo asignado</div><div class="ad-item-val"><span class="badge-warn">Medio</span></div></div>
+        <div class="ad-item"><div class="ad-item-label">Viento</div><div class="ad-item-val">18 km/h NNE</div></div>
+        <div class="ad-item"><div class="ad-item-label">Visibilidad</div><div class="ad-item-val">6 m</div></div>
+        <div class="ad-item"><div class="ad-item-label">Temp. agua</div><div class="ad-item-val">14 °C</div></div>
+      </div>
+
+      <div style="font-size:12px; color:#8b949e; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:10px;">Registro de alertas y decisiones</div>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="tl-dot tl-dot-warn"></div>
+          <div class="tl-content"><strong>10:15 hs — Alerta emitida:</strong> Marea en ascenso. Pleamar prevista 13:40 hs. Sistema recomendó reducir tiempo en fondo o adelantar entrada.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="tl-dot tl-dot-warn"></div>
+          <div class="tl-content"><strong>10:15 hs — Alerta emitida:</strong> Temperatura del agua 14 °C. Para inmersiones > 45 min se recomienda traje de 7 mm mínimo.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="tl-dot tl-dot-info"></div>
+          <div class="tl-content"><strong>10:17 hs — Decisión del instructor (con justificación):</strong> "Se verificó con todos los alumnos el uso de traje 7 mm. La inmersión se planificó para finalizar antes de las 11:30, evitando el pico de corriente. Salida del agua: 11:20 hs máximo."</div>
+        </div>
+        <div class="timeline-item">
+          <div class="tl-dot tl-dot-ok"></div>
+          <div class="tl-content"><strong>10:18 hs — Planificación registrada.</strong> Hash de integridad generado: a3f9c1d2. Registro inmutable.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  var rp = document.getElementById('risk-panel');
+  var ad = document.getElementById('audit-detail');
+  if (rp) rp.classList.remove('show');
+  if (ad) ad.classList.remove('show');
+  window.scrollTo(0, 0);
+}
+function showRisk() {
+  var p = document.getElementById('risk-panel');
+  p.classList.add('show');
+  setTimeout(function(){ p.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
+}
+function showAudit() {
+  var d = document.getElementById('audit-detail');
+  d.classList.add('show');
+  setTimeout(function(){ d.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
+}
+function closeAudit() {
+  document.getElementById('audit-detail').classList.remove('show');
+}
+document.querySelectorAll('.equip-check').forEach(function(el) {
+  el.addEventListener('click', function(e) {
+    setTimeout(function() {
+      var cb = el.querySelector('input[type="checkbox"]');
+      if (cb.checked) el.classList.add('checked');
+      else el.classList.remove('checked');
+    }, 0);
+  });
+});
+</script>
+</body>
+</html>

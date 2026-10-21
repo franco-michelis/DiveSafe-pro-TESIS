@@ -1,0 +1,16 @@
+# Dependencias
+node_modules/
+
+# Secretos y configuración local (usar .env.example como plantilla)
+.env
+.env.*
+!.env.example
+
+# Builds y caches
+dist/
+.vite/
+
+# Logs y archivos del sistema
+*.log
+.DS_Store
+Thumbs.db
