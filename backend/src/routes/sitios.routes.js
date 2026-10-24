@@ -1,6 +1,7 @@
 const express = require('express');
 const { sql, getPool } = require('../config/db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { ambienteDelSitio, ErrorAmbiente, SitioInvalido, ATRIBUCION } = require('../services/ambiente');
 
 const router = express.Router();
 
@@ -62,6 +63,32 @@ router.get('/mapa', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener el mapa de riesgo por sitio.' });
+  }
+});
+
+// GET /api/sitios/:id/ambiente -> condiciones ambientales en tiempo real del sitio (Open-Meteo, por sus coordenadas)
+router.get('/:id/ambiente', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const { sitio, ambiente } = await ambienteDelSitio(pool, req.params.id, req.query.forzar === '1');
+    res.json({
+      sitioId: sitio.SitioId,
+      sitio: sitio.Nombre,
+      latitud: Number(sitio.Latitud),
+      longitud: Number(sitio.Longitud),
+      atribucion: ATRIBUCION,
+      ...ambiente,
+    });
+  } catch (err) {
+    if (err instanceof SitioInvalido) {
+      return res.status(404).json({ error: 'El sitio de buceo no existe o está inactivo.' });
+    }
+    if (err instanceof ErrorAmbiente) {
+      console.error('Open-Meteo:', err.message);
+      return res.status(502).json({ error: 'No se pudieron obtener las condiciones ambientales en tiempo real. Reintentá en unos minutos.' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las condiciones ambientales.' });
   }
 });
 

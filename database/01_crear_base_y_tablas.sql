@@ -106,18 +106,25 @@ CREATE TABLE Planificaciones (
     NotasAdicionales       VARCHAR(4000) NULL,
     BriefingRealizado      VARCHAR(50)  NULL,
 
-    -- Variables ambientales (cargadas a mano por ahora - a futuro vienen de una API)
+    -- Variables ambientales: las trae la API Open-Meteo según las coordenadas del sitio.
+    -- Oleaje, Corriente y TempAgua son NULL cuando la API no tiene datos (lagos y lagunas).
+    -- Visibilidad (bajo el agua) no existe en ninguna API gratuita: la carga el instructor.
     Viento                 DECIMAL(5,1) NOT NULL,   -- km/h
-    DireccionViento        VARCHAR(10)  NULL,
-    Oleaje                 DECIMAL(4,1) NOT NULL,   -- m
-    Corriente              DECIMAL(4,2) NOT NULL,   -- nudos
-    DireccionCorriente     VARCHAR(20)  NULL,
+    DireccionViento        VARCHAR(10)  NULL,       -- de dónde sopla (ej: NNE)
+    Oleaje                 DECIMAL(4,1) NULL,       -- m
+    Corriente              DECIMAL(4,2) NULL,       -- nudos
+    DireccionCorriente     VARCHAR(20)  NULL,       -- hacia dónde va (ej: ESE)
     Visibilidad            DECIMAL(4,1) NOT NULL,   -- m
-    Marea                  DECIMAL(4,1) NULL,       -- m
+    Marea                  DECIMAL(4,1) NULL,       -- m sobre el nivel medio del mar
     EstadoMarea            VARCHAR(20)  NULL,       -- Subiendo, Bajando
-    TempAgua               DECIMAL(4,1) NOT NULL,   -- °C
+    TempAgua               DECIMAL(4,1) NULL,       -- °C
     Clima                  VARCHAR(30)  NOT NULL,   -- Soleado, Nublado, Lluvia/Tormenta
     CoberturaNubes         DECIMAL(4,1) NOT NULL,   -- %
+
+    -- Auditoría del origen de los datos ambientales (NULL en planificaciones viejas, cargadas a mano)
+    AmbienteFuente         VARCHAR(100) NULL,       -- ej: 'Open-Meteo'
+    AmbienteFechaHora      DATETIME     NULL,       -- momento al que corresponde el dato de la API
+    AmbienteManual         VARCHAR(100) NULL,       -- variables cargadas por el instructor, ej: 'Visibilidad'
 
     -- Resultado de la evaluación
     NivelRiesgo            VARCHAR(20)  NOT NULL,   -- Bajo, Medio, Alto

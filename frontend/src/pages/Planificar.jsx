@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import PanelAmbiente, { LIMITES_AMBIENTE } from '../components/PanelAmbiente';
 
 // Mismos límites que backend/src/services/validaciones.js
 const LIMITES = {
@@ -29,7 +30,7 @@ function horaPorDefecto(ahora) {
 }
 
 // Devuelve { campo: 'mensaje' } con los campos inválidos (vacío si todo está bien).
-function validarFormulario(form, ahora = new Date()) {
+function validarFormulario(form, ahora = new Date(), ambiente = null) {
   const errores = {};
   const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v));
   const fueraDeRango = (v, { min, max }, entero) => (
@@ -61,6 +62,26 @@ function validarFormulario(form, ahora = new Date()) {
   } else if (presionValida && reserva >= presion) {
     errores.reservaMinima = 'Tiene que ser menor que la presión inicial.';
   }
+
+  // Visibilidad: obligatoria. Temperatura, oleaje y corriente: solo si la API no tiene el dato, y opcionales.
+  const fueraDeRangoAmbiente = (campo) => {
+    const { min, max, unidad, nombre } = LIMITES_AMBIENTE[campo];
+    const v = num(form[campo]);
+    return !Number.isFinite(v) || v < min || v > max ? `${nombre} debe estar entre ${min} y ${max} ${unidad}.` : null;
+  };
+  if (form.visibilidad === '') {
+    errores.visibilidad = 'Ingresá la visibilidad bajo el agua.';
+  } else {
+    const mensaje = fueraDeRangoAmbiente('visibilidad');
+    if (mensaje) errores.visibilidad = mensaje;
+  }
+  ['tempAgua', 'oleaje', 'corriente'].forEach((campo) => {
+    const faltaEnApi = ambiente && (ambiente[campo] === null || ambiente[campo] === undefined);
+    if (faltaEnApi && form[campo] !== '') {
+      const mensaje = fueraDeRangoAmbiente(campo);
+      if (mensaje) errores[campo] = mensaje;
+    }
+  });
 
   const hora = /^(\d{2}):(\d{2})$/.exec(form.horaEntrada || '');
   if (!hora) {
@@ -119,18 +140,12 @@ const estadoInicial = () => ({
   notasAdicionales: '',
   briefingRealizado: 'Sí — completo',
 
-  // Variables ambientales (cargadas a mano - a futuro API real)
-  viento: 18,
-  direccionViento: 'NNE',
-  oleaje: 0.8,
-  corriente: 0.4,
-  direccionCorriente: 'E-O',
-  visibilidad: 6,
-  marea: 2.4,
-  estadoMarea: 'Subiendo',
-  tempAgua: 14,
-  clima: 'Soleado',
-  coberturaNubes: 22,
+  // Variables ambientales: las trae la API según el sitio. Solo se cargan a mano la visibilidad
+  // bajo el agua (siempre) y, si la API no tiene el dato (lagos, lagunas), temperatura, oleaje y corriente.
+  visibilidad: '',
+  tempAgua: '',
+  oleaje: '',
+  corriente: '',
 });
 
 const EQUIPOS = [
@@ -152,6 +167,10 @@ export default function Planificar() {
   const [guardando, setGuardando] = useState(false);
   const [sitios, setSitios] = useState([]);
   const [cargandoSitios, setCargandoSitios] = useState(true);
+  const [ambiente, setAmbiente] = useState(null);
+  const [cargandoAmbiente, setCargandoAmbiente] = useState(false);
+  const [errorAmbiente, setErrorAmbiente] = useState('');
+  const pedidoAmbiente = useRef(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -164,9 +183,39 @@ export default function Planificar() {
       .finally(() => setCargandoSitios(false));
   }, []);
 
+  // Trae las condiciones del sitio desde la API. Si se pide otro sitio mientras llega la respuesta, se descarta la vieja.
+  async function cargarAmbiente(sitioId, forzar = false) {
+    const pedido = ++pedidoAmbiente.current;
+    setCargandoAmbiente(true);
+    setErrorAmbiente('');
+    setResultado(null);
+    try {
+      const datos = await api.obtenerAmbienteSitio(sitioId, forzar);
+      if (pedido === pedidoAmbiente.current) setAmbiente(datos);
+    } catch (err) {
+      if (pedido === pedidoAmbiente.current) setErrorAmbiente(err.message);
+    } finally {
+      if (pedido === pedidoAmbiente.current) setCargandoAmbiente(false);
+    }
+  }
+
+  useEffect(() => {
+    setAmbiente(null);
+    if (form.sitioId) cargarAmbiente(form.sitioId);
+    else setErrorAmbiente('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.sitioId]);
+
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setResultado(null); // si cambia algo, invalidamos la evaluación anterior
+    setExito('');
+  }
+
+  // Al cambiar de sitio se descartan los valores cargados a mano para el sitio anterior.
+  function cambiarSitio(sitioId) {
+    setForm((prev) => ({ ...prev, sitioId, tempAgua: '', oleaje: '', corriente: '' }));
+    setResultado(null);
     setExito('');
   }
 
@@ -175,14 +224,15 @@ export default function Planificar() {
   }
 
   // Se recalcula en cada render; al evaluar/registrar se vuelve a calcular con la hora exacta de ese momento.
-  const errores = validarFormulario(form);
-  const hayErrores = Object.keys(errores).length > 0;
+  const errores = validarFormulario(form, new Date(), ambiente);
+  const sinAmbiente = !ambiente || Boolean(errorAmbiente);
+  const hayErrores = Object.keys(errores).length > 0 || sinAmbiente;
 
   async function handleEvaluar() {
     setError('');
     const ahora = new Date();
-    const erroresAhora = validarFormulario(form, ahora);
-    if (Object.keys(erroresAhora).length > 0) {
+    const erroresAhora = validarFormulario(form, ahora, ambiente);
+    if (Object.keys(erroresAhora).length > 0 || sinAmbiente) {
       setError('Revisá los campos marcados en rojo antes de evaluar el riesgo.');
       return;
     }
@@ -200,8 +250,8 @@ export default function Planificar() {
   async function handleRegistrar() {
     setError('');
     const ahora = new Date();
-    const erroresAhora = validarFormulario(form, ahora);
-    if (Object.keys(erroresAhora).length > 0) {
+    const erroresAhora = validarFormulario(form, ahora, ambiente);
+    if (Object.keys(erroresAhora).length > 0 || sinAmbiente) {
       setResultado(null);
       setError(erroresAhora.horaEntrada || 'Revisá los campos marcados en rojo antes de registrar.');
       return;
@@ -254,7 +304,7 @@ export default function Planificar() {
             <label>Sitio de buceo</label>
             <select
               value={form.sitioId}
-              onChange={(e) => update('sitioId', Number(e.target.value))}
+              onChange={(e) => cambiarSitio(Number(e.target.value))}
               disabled={sitios.length === 0}
             >
               {sitios.length === 0 && (
@@ -482,74 +532,25 @@ export default function Planificar() {
           </div>
         </div>
 
-        {/* Condiciones ambientales - editables a mano */}
+        {/* Condiciones ambientales: las trae la API según las coordenadas del sitio (solo lectura) */}
         <div className="form-section full">
-          <h3><i className="ti ti-cloud" /> Condiciones ambientales al momento</h3>
+          <h3><i className="ti ti-cloud" /> Condiciones ambientales</h3>
           <div className="env-note">
             <i className="ti ti-info-circle" />
-            Por ahora estos valores se cargan a mano para poder hacer pruebas con distintos escenarios.
-            Más adelante esta sección se va a completar automáticamente conectando una API climática real.
+            Estas condiciones se obtienen en tiempo real para las coordenadas del sitio elegido y no se pueden modificar.
+            Solo cargás a mano la visibilidad bajo el agua y, si la API no tiene el dato (lagos y lagunas), lo que falte del agua.
           </div>
-          <div className="form-row-3">
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Viento (km/h)</label>
-              <input type="number" step="0.1" value={form.viento} onChange={(e) => update('viento', Number(e.target.value))} />
-            </div>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Dirección del viento</label>
-              <input type="text" value={form.direccionViento} onChange={(e) => update('direccionViento', e.target.value)} />
-            </div>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Oleaje (m)</label>
-              <input type="number" step="0.1" value={form.oleaje} onChange={(e) => update('oleaje', Number(e.target.value))} />
-            </div>
-          </div>
-          <div className="form-row-3" style={{ marginTop: 12 }}>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Corriente (nudos)</label>
-              <input type="number" step="0.1" value={form.corriente} onChange={(e) => update('corriente', Number(e.target.value))} />
-            </div>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Dirección de la corriente</label>
-              <input type="text" value={form.direccionCorriente} onChange={(e) => update('direccionCorriente', e.target.value)} />
-            </div>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Visibilidad (m)</label>
-              <input type="number" step="0.1" value={form.visibilidad} onChange={(e) => update('visibilidad', Number(e.target.value))} />
-            </div>
-          </div>
-          <div className="form-row-3" style={{ marginTop: 12 }}>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Marea (m)</label>
-              <input type="number" step="0.1" value={form.marea} onChange={(e) => update('marea', Number(e.target.value))} />
-            </div>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Estado de la marea</label>
-              <select value={form.estadoMarea} onChange={(e) => update('estadoMarea', e.target.value)}>
-                <option>Subiendo</option>
-                <option>Bajando</option>
-              </select>
-            </div>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Temperatura del agua (°C)</label>
-              <input type="number" step="0.1" value={form.tempAgua} onChange={(e) => update('tempAgua', Number(e.target.value))} />
-            </div>
-          </div>
-          <div className="form-row-3" style={{ marginTop: 12 }}>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Clima</label>
-              <select value={form.clima} onChange={(e) => update('clima', e.target.value)}>
-                <option>Soleado</option>
-                <option>Nublado</option>
-                <option>Lluvia/Tormenta</option>
-              </select>
-            </div>
-            <div className="form-row" style={{ marginBottom: 0 }}>
-              <label>Cobertura de nubes (%)</label>
-              <input type="number" step="1" value={form.coberturaNubes} onChange={(e) => update('coberturaNubes', Number(e.target.value))} />
-            </div>
-            <div />
-          </div>
+          <PanelAmbiente
+            sitio={sitios.find((s) => s.SitioId === form.sitioId)}
+            ambiente={ambiente}
+            cargando={cargandoAmbiente}
+            error={errorAmbiente}
+            onActualizar={() => cargarAmbiente(form.sitioId, true)}
+            form={form}
+            errores={errores}
+            onManual={update}
+            bloquearSignos={bloquearSignos}
+          />
         </div>
       </div>
 

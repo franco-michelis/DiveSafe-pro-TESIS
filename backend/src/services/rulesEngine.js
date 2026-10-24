@@ -131,6 +131,21 @@ function evaluarReglas(datos) {
       'Mucha cobertura de nubes, espere a que se despeje.');
   }
 
+  // ---- Datos ambientales sin valor (la API no los tiene para este sitio, p. ej. lagos y lagunas) ----
+  // Un dato desconocido llega como NaN, así que ninguna regla lo toma como 0. Acá se avisa qué no se evaluó.
+  if (!Number.isFinite(tempAgua)) {
+    push('Info', 'Sin dato: temp. agua',
+      'No hay datos de la temperatura del agua para este sitio: no se evaluaron las reglas 1 y 2 (hipotermia).');
+  }
+  if (!Number.isFinite(oleaje)) {
+    push('Info', 'Sin dato: oleaje',
+      'No hay datos de oleaje para este sitio: la regla 7 solo se evaluó por visibilidad.');
+  }
+  if (!Number.isFinite(corriente)) {
+    push('Info', 'Sin dato: corriente',
+      'No hay datos de corriente para este sitio: no se evaluó la regla 10.');
+  }
+
   return alertas;
 }
 

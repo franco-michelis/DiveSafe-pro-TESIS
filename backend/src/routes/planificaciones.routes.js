@@ -3,10 +3,23 @@ const crypto = require('crypto');
 const { sql, getPool } = require('../config/db');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { evaluarReglas, calcularNivelRiesgo } = require('../services/rulesEngine');
-const { validarPlanificacion } = require('../services/validaciones');
+const { validarPlanificacion, resolverAmbiente } = require('../services/validaciones');
+const { ambienteDelSitio, ErrorAmbiente, SitioInvalido, FUENTE } = require('../services/ambiente');
 
 function responderErroresDeValidacion(res, errores) {
   return res.status(400).json({ error: errores.join(' '), errores });
+}
+
+function responderError(res, err, mensajeGenerico) {
+  if (err instanceof SitioInvalido) {
+    return res.status(400).json({ error: 'El sitio de buceo seleccionado no existe o está inactivo.' });
+  }
+  if (err instanceof ErrorAmbiente) {
+    console.error('Open-Meteo:', err.message);
+    return res.status(502).json({ error: 'No se pudieron obtener las condiciones ambientales en tiempo real. Reintentá en unos minutos.' });
+  }
+  console.error(err);
+  return res.status(500).json({ error: mensajeGenerico });
 }
 
 const router = express.Router();
@@ -14,45 +27,69 @@ const router = express.Router();
 router.use(requireAuth);
 
 /**
- * Normaliza el body del formulario a las variables que espera
- * el motor de reglas.
+ * Arma las variables que espera el motor de reglas: las técnicas vienen del formulario y las
+ * ambientales de la API. Un dato ambiental sin valor (null) pasa a NaN para que ninguna regla
+ * lo tome como 0.
  */
-function extraerDatosParaReglas(body) {
+function extraerDatosParaReglas(body, ambiente) {
+  const desconocido = (v) => (v === null || v === undefined ? NaN : Number(v));
   return {
-    tempAgua: Number(body.tempAgua),
+    tempAgua: desconocido(ambiente.tempAgua),
     tipoTraje: body.tipoTraje,
     certificacionPromedio: body.certificacionPromedio,
     profundidadMaxima: Number(body.profundidadMaxima),
     esBuceoNocturno: Boolean(body.esBuceoNocturno),
     ratioInstructorAlumno: Number(body.ratioInstructorAlumno),
-    visibilidad: Number(body.visibilidad),
-    oleaje: Number(body.oleaje),
+    visibilidad: Number(ambiente.visibilidad),
+    oleaje: desconocido(ambiente.oleaje),
     cantidadAlumnos: Number(body.cantidadAlumnos),
     tamanoTanque: body.tamanoTanque,
     tiempoEstimado: Number(body.tiempoEstimado),
-    corriente: Number(body.corriente),
+    corriente: desconocido(ambiente.corriente),
     equipoBoya: Boolean(body.equipoBoya),
     equipoCuchillo: Boolean(body.equipoCuchillo),
-    clima: body.clima,
-    coberturaNubes: Number(body.coberturaNubes),
+    clima: ambiente.clima,
+    coberturaNubes: Number(ambiente.coberturaNubes),
+  };
+}
+
+/**
+ * Valida, trae las condiciones ambientales del sitio y evalúa las reglas.
+ * Devuelve { errores } si algo es inválido, o el resultado completo de la evaluación.
+ */
+async function prepararEvaluacion(body) {
+  const errores = validarPlanificacion(body);
+  if (errores.length > 0) return { errores };
+
+  const pool = await getPool();
+  const { sitio, ambiente: ambienteApi } = await ambienteDelSitio(pool, body.sitioId);
+  const resuelto = resolverAmbiente(body, ambienteApi);
+  if (resuelto.errores.length > 0) return { errores: resuelto.errores };
+
+  const alertas = evaluarReglas(extraerDatosParaReglas(body, resuelto.ambiente));
+  return {
+    pool,
+    sitio,
+    ambienteApi,
+    ambiente: resuelto.ambiente,
+    manuales: resuelto.manuales,
+    alertas,
+    nivelRiesgo: calcularNivelRiesgo(alertas),
   };
 }
 
 // POST /api/planificaciones/evaluar
 // Calcula el riesgo SIN guardar nada en la base (para mostrar el resultado en pantalla)
-router.post('/evaluar', (req, res) => {
+router.post('/evaluar', async (req, res) => {
   try {
-    const errores = validarPlanificacion(req.body);
-    if (errores.length > 0) return responderErroresDeValidacion(res, errores);
+    const evaluacion = await prepararEvaluacion(req.body);
+    if (evaluacion.errores) return responderErroresDeValidacion(res, evaluacion.errores);
 
-    const datos = extraerDatosParaReglas(req.body);
-    const alertas = evaluarReglas(datos);
-    const nivelRiesgo = calcularNivelRiesgo(alertas);
+    const { alertas, nivelRiesgo } = evaluacion;
     const requiereJustificacion = alertas.some(a => a.tipo === 'Alerta');
     res.json({ alertas, nivelRiesgo, requiereJustificacion });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al evaluar el riesgo. Revisá que todos los campos estén completos.' });
+    responderError(res, err, 'Error al evaluar el riesgo. Revisá que todos los campos estén completos.');
   }
 });
 
@@ -63,12 +100,10 @@ router.post('/', async (req, res) => {
   const usuarioId = req.usuario.usuarioId;
 
   try {
-    const errores = validarPlanificacion(body);
-    if (errores.length > 0) return responderErroresDeValidacion(res, errores);
+    const evaluacion = await prepararEvaluacion(body);
+    if (evaluacion.errores) return responderErroresDeValidacion(res, evaluacion.errores);
 
-    const datosReglas = extraerDatosParaReglas(body);
-    const alertas = evaluarReglas(datosReglas);
-    const nivelRiesgo = calcularNivelRiesgo(alertas);
+    const { pool, sitio, ambiente, ambienteApi, manuales, alertas, nivelRiesgo } = evaluacion;
     const cantAlertas = alertas.filter(a => a.tipo === 'Alerta').length;
     const cantRecomendaciones = alertas.filter(a => a.tipo === 'Recomendacion').length;
 
@@ -76,21 +111,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Hay advertencias activas: la justificación del instructor es obligatoria para registrar esta planificación.' });
     }
 
-    const pool = await getPool();
-
-    const sitio = await pool.request()
-      .input('sitioId', sql.Int, body.sitioId)
-      .query('SELECT SitioId, Nombre FROM SitiosBuceo WHERE SitioId = @sitioId AND Activo = 1');
-    if (sitio.recordset.length === 0) {
-      return res.status(400).json({ error: 'El sitio de buceo seleccionado no existe o está inactivo.' });
-    }
-
     const request = pool.request();
 
     request
       .input('usuarioId', sql.Int, usuarioId)
-      .input('sitioId', sql.Int, sitio.recordset[0].SitioId)
-      .input('sitioBuceo', sql.VarChar, sitio.recordset[0].Nombre)
+      .input('sitioId', sql.Int, sitio.SitioId)
+      .input('sitioBuceo', sql.VarChar, sitio.Nombre)
       .input('tipoInmersion', sql.VarChar, body.tipoInmersion)
       .input('tipoEntradaAgua', sql.VarChar, body.tipoEntradaAgua)
       .input('profundidadMaxima', sql.Decimal(5, 1), body.profundidadMaxima)
@@ -115,17 +141,20 @@ router.post('/', async (req, res) => {
       .input('equipoSilbato', sql.Bit, body.equipoSilbato ? 1 : 0)
       .input('notasAdicionales', sql.VarChar(4000), body.notasAdicionales || null)
       .input('briefingRealizado', sql.VarChar, body.briefingRealizado || null)
-      .input('viento', sql.Decimal(5, 1), body.viento)
-      .input('direccionViento', sql.VarChar, body.direccionViento || null)
-      .input('oleaje', sql.Decimal(4, 1), body.oleaje)
-      .input('corriente', sql.Decimal(4, 2), body.corriente)
-      .input('direccionCorriente', sql.VarChar, body.direccionCorriente || null)
-      .input('visibilidad', sql.Decimal(4, 1), body.visibilidad)
-      .input('marea', sql.Decimal(4, 1), body.marea || null)
-      .input('estadoMarea', sql.VarChar, body.estadoMarea || null)
-      .input('tempAgua', sql.Decimal(4, 1), body.tempAgua)
-      .input('clima', sql.VarChar, body.clima)
-      .input('coberturaNubes', sql.Decimal(4, 1), body.coberturaNubes)
+      .input('viento', sql.Decimal(5, 1), ambiente.viento)
+      .input('direccionViento', sql.VarChar, ambiente.direccionViento)
+      .input('oleaje', sql.Decimal(4, 1), ambiente.oleaje)
+      .input('corriente', sql.Decimal(4, 2), ambiente.corriente)
+      .input('direccionCorriente', sql.VarChar, ambiente.direccionCorriente)
+      .input('visibilidad', sql.Decimal(4, 1), ambiente.visibilidad)
+      .input('marea', sql.Decimal(4, 1), ambiente.marea)
+      .input('estadoMarea', sql.VarChar, ambiente.estadoMarea)
+      .input('tempAgua', sql.Decimal(4, 1), ambiente.tempAgua)
+      .input('clima', sql.VarChar, ambiente.clima)
+      .input('coberturaNubes', sql.Decimal(4, 1), ambiente.coberturaNubes)
+      .input('ambienteFuente', sql.VarChar, FUENTE)
+      .input('ambienteFechaHora', sql.DateTime, new Date(ambienteApi.fechaHora))
+      .input('ambienteManual', sql.VarChar, manuales.length > 0 ? manuales.join(', ') : null)
       .input('nivelRiesgo', sql.VarChar, nivelRiesgo)
       .input('cantidadAdvertencias', sql.Int, cantAlertas)
       .input('cantidadRecomendaciones', sql.Int, cantRecomendaciones)
@@ -140,6 +169,7 @@ router.post('/', async (req, res) => {
         TipoTraje, EquipoBoya, EquipoComputadora, EquipoLinterna, EquipoCuchillo, EquipoCamara, EquipoSilbato,
         NotasAdicionales, BriefingRealizado, Viento, DireccionViento, Oleaje, Corriente, DireccionCorriente,
         Visibilidad, Marea, EstadoMarea, TempAgua, Clima, CoberturaNubes,
+        AmbienteFuente, AmbienteFechaHora, AmbienteManual,
         NivelRiesgo, CantidadAdvertencias, CantidadRecomendaciones, Justificacion, HashIntegridad
       )
       OUTPUT INSERTED.PlanificacionId
@@ -150,6 +180,7 @@ router.post('/', async (req, res) => {
         @tipoTraje, @equipoBoya, @equipoComputadora, @equipoLinterna, @equipoCuchillo, @equipoCamara, @equipoSilbato,
         @notasAdicionales, @briefingRealizado, @viento, @direccionViento, @oleaje, @corriente, @direccionCorriente,
         @visibilidad, @marea, @estadoMarea, @tempAgua, @clima, @coberturaNubes,
+        @ambienteFuente, @ambienteFechaHora, @ambienteManual,
         @nivelRiesgo, @cantidadAdvertencias, @cantidadRecomendaciones, @justificacion, @hashIntegridad
       )
     `);
@@ -172,8 +203,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ planificacionId, nivelRiesgo, alertas });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al registrar la planificación.' });
+    responderError(res, err, 'Error al registrar la planificación.');
   }
 });
 

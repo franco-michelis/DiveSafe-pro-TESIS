@@ -22,7 +22,7 @@ export default function NavBar() {
   return (
     <nav className="nav">
       <Link to="/" className="nav-logo">
-        <div className="nav-logo-icon"><i className="ti ti-ripple" /></div>
+        <img className="nav-logo-img" src="/logo.png" alt="" />
         DiveSafe Pro
       </Link>
       <div className="nav-links">

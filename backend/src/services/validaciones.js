@@ -95,4 +95,57 @@ function validarPlanificacion(body, ahora = new Date()) {
   return errores;
 }
 
-module.exports = { validarPlanificacion, LIMITES };
+/**
+ * Variables ambientales de una planificación: las trae la API (el cliente no puede modificarlas).
+ * Excepciones, que carga el instructor:
+ *  - visibilidad bajo el agua: ninguna API gratuita la tiene; es obligatoria.
+ *  - temperatura del agua, oleaje y corriente: solo si la API no tiene dato para el sitio (lagos, lagunas).
+ *    Si se dejan vacíos, el motor de reglas no evalúa las reglas que dependen de ellos y lo avisa.
+ *
+ * Devuelve { errores, ambiente, manuales }. `manuales` lista lo que cargó el instructor, para auditar.
+ */
+const LIMITES_AMBIENTE_MANUAL = {
+  visibilidad: { min: 0, max: 60, decimales: 1, nombre: 'La visibilidad bajo el agua', unidad: 'm', columna: 'Visibilidad' },
+  tempAgua: { min: -2, max: 40, decimales: 1, nombre: 'La temperatura del agua', unidad: '°C', columna: 'TempAgua' },
+  oleaje: { min: 0, max: 15, decimales: 1, nombre: 'El oleaje', unidad: 'm', columna: 'Oleaje' },
+  corriente: { min: 0, max: 10, decimales: 2, nombre: 'La corriente', unidad: 'nudos', columna: 'Corriente' },
+};
+
+function resolverAmbiente(body, ambienteApi) {
+  const errores = [];
+  const manuales = [];
+  const ambiente = {
+    viento: ambienteApi.viento,
+    direccionViento: ambienteApi.direccionViento,
+    clima: ambienteApi.clima,
+    coberturaNubes: ambienteApi.coberturaNubes,
+    direccionCorriente: ambienteApi.direccionCorriente,
+    marea: ambienteApi.marea,
+    estadoMarea: ambienteApi.estadoMarea,
+  };
+
+  const leerManual = (campo, obligatorio) => {
+    const { min, max, decimales, nombre, unidad, columna } = LIMITES_AMBIENTE_MANUAL[campo];
+    const crudo = body[campo];
+    const vacio = crudo === '' || crudo === null || crudo === undefined;
+    if (vacio && !obligatorio) return null;
+    const valor = aNumero(crudo);
+    if (!Number.isFinite(valor) || valor < min || valor > max) {
+      errores.push(`${nombre} debe estar entre ${min} y ${max} ${unidad}.`);
+      return null;
+    }
+    manuales.push(columna);
+    return Number(valor.toFixed(decimales));
+  };
+
+  ambiente.visibilidad = leerManual('visibilidad', true);
+  ['tempAgua', 'oleaje', 'corriente'].forEach((campo) => {
+    ambiente[campo] = ambienteApi[campo] !== null && ambienteApi[campo] !== undefined
+      ? ambienteApi[campo]
+      : leerManual(campo, false);
+  });
+
+  return { errores, ambiente, manuales };
+}
+
+module.exports = { validarPlanificacion, resolverAmbiente, LIMITES, LIMITES_AMBIENTE_MANUAL };

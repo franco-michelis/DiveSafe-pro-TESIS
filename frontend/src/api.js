@@ -46,6 +46,7 @@ export const api = {
 
   listarSitios: (soloActivos = false) => request(`/sitios${soloActivos ? '?soloActivos=1' : ''}`),
   obtenerMapaSitios: () => request('/sitios/mapa'),
+  obtenerAmbienteSitio: (id, forzar = false) => request(`/sitios/${id}/ambiente${forzar ? '?forzar=1' : ''}`),
   crearSitio: (datos) => request('/sitios', { method: 'POST', body: datos }),
   editarSitio: (id, datos) => request(`/sitios/${id}`, { method: 'PUT', body: datos }),
   cambiarEstadoSitio: (id, activo) => request(`/sitios/${id}/estado`, { method: 'PUT', body: { activo } }),

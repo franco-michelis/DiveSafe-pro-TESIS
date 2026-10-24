@@ -20,6 +20,20 @@ function formatFechaHora(fechaIso) {
   return `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs`;
 }
 
+const NOMBRE_VARIABLE = { Visibilidad: 'visibilidad', TempAgua: 'temperatura del agua', Oleaje: 'oleaje', Corriente: 'corriente' };
+
+function sinDato(valor, unidad) {
+  return valor === null || valor === undefined ? 'Sin datos' : `${valor} ${unidad}`;
+}
+
+// De dónde salieron las variables ambientales de una planificación (auditoría del origen del dato).
+function origenAmbiente(p) {
+  if (!p.AmbienteFuente) return 'Condiciones ambientales cargadas a mano (planificación anterior a la conexión con la API).';
+  const manuales = (p.AmbienteManual || '').split(',').map((v) => NOMBRE_VARIABLE[v.trim()]).filter(Boolean);
+  const hora = new Date(p.AmbienteFechaHora).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short', hour12: false });
+  return `Condiciones ambientales de ${p.AmbienteFuente} (dato de ${hora} hs).${manuales.length ? ` Cargadas por el instructor: ${manuales.join(', ')}.` : ''}`;
+}
+
 export default function Auditar() {
   const { esAdmin } = useAuth();
   const [planificaciones, setPlanificaciones] = useState([]);
@@ -125,13 +139,16 @@ export default function Auditar() {
             <div className="ad-item"><div className="ad-item-label">Briefing realizado</div><div className="ad-item-val">{detalle.planificacion.BriefingRealizado || '—'}</div></div>
 
             <div className="ad-item"><div className="ad-item-label">Viento</div><div className="ad-item-val">{detalle.planificacion.Viento} km/h {detalle.planificacion.DireccionViento}</div></div>
-            <div className="ad-item"><div className="ad-item-label">Oleaje</div><div className="ad-item-val">{detalle.planificacion.Oleaje} m</div></div>
-            <div className="ad-item"><div className="ad-item-label">Corriente</div><div className="ad-item-val">{detalle.planificacion.Corriente} nud {detalle.planificacion.DireccionCorriente}</div></div>
+            <div className="ad-item"><div className="ad-item-label">Oleaje</div><div className="ad-item-val">{sinDato(detalle.planificacion.Oleaje, 'm')}</div></div>
+            <div className="ad-item"><div className="ad-item-label">Corriente</div><div className="ad-item-val">{sinDato(detalle.planificacion.Corriente, 'nud')} {detalle.planificacion.Corriente != null && detalle.planificacion.DireccionCorriente ? `→ ${detalle.planificacion.DireccionCorriente}` : ''}</div></div>
             <div className="ad-item"><div className="ad-item-label">Visibilidad</div><div className="ad-item-val">{detalle.planificacion.Visibilidad} m</div></div>
-            <div className="ad-item"><div className="ad-item-label">Marea</div><div className="ad-item-val">{detalle.planificacion.Marea != null ? `${detalle.planificacion.Marea} m` : '—'} {detalle.planificacion.EstadoMarea ? `· ${detalle.planificacion.EstadoMarea}` : ''}</div></div>
-            <div className="ad-item"><div className="ad-item-label">Temp. agua</div><div className="ad-item-val">{detalle.planificacion.TempAgua} °C</div></div>
+            <div className="ad-item"><div className="ad-item-label">Marea</div><div className="ad-item-val">{sinDato(detalle.planificacion.Marea, 'm')} {detalle.planificacion.EstadoMarea ? `· ${detalle.planificacion.EstadoMarea}` : ''}</div></div>
+            <div className="ad-item"><div className="ad-item-label">Temp. agua</div><div className="ad-item-val">{sinDato(detalle.planificacion.TempAgua, '°C')}</div></div>
             <div className="ad-item"><div className="ad-item-label">Clima</div><div className="ad-item-val">{detalle.planificacion.Clima}</div></div>
             <div className="ad-item"><div className="ad-item-label">Cobertura de nubes</div><div className="ad-item-val">{detalle.planificacion.CoberturaNubes}%</div></div>
+          </div>
+          <div className="ad-origen">
+            <i className="ti ti-cloud-data-connection" /> {origenAmbiente(detalle.planificacion)}
           </div>
 
           <div style={{ fontSize: 12, color: '#8b949e', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>

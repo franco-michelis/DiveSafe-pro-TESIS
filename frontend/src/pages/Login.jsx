@@ -28,7 +28,7 @@ export default function Login() {
     <div className="login-page">
       <div className="login-box">
         <div className="login-logo">
-          <div className="login-logo-icon"><i className="ti ti-ripple" /></div>
+          <img className="login-logo-img" src="/logo.png" alt="DiveSafe Pro" />
           <h1>DiveSafe Pro</h1>
           <p>Sistema de evaluación de riesgo y auditoría de inmersiones</p>
         </div>
