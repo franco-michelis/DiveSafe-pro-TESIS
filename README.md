@@ -25,9 +25,6 @@ asigna un nivel de riesgo (**Bajo, Medio o Alto**), emite advertencias y recomen
 exige que el instructor justifique su decisión. Todo queda registrado con un hash de integridad para poder
 **auditarlo** después.
 
-Estado: **MVP**. Funciona de punta a punta; el despliegue en la nube y algunas mejoras de seguridad para producción
-quedan como trabajo futuro.
-
 Está formado por tres partes:
 
 | Carpeta | Contenido | Tecnología |
