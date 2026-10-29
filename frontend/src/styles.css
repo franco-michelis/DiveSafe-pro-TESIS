@@ -272,6 +272,5 @@ body {
 .login-box .form-row label { font-size: 12px; }
 .login-box .form-row input { padding: 10px 12px; font-size: 14px; }
 .login-submit { width: 100%; margin-top: 6px; justify-content: center; }
-.login-hint { margin-top: 20px; padding-top: 18px; border-top: 0.5px solid #21262d; font-size: 11px; color: #8b949e; text-align: center; line-height: 1.6; }
 
 .loading-center { display: flex; align-items: center; justify-content: center; min-height: 100vh; color: #8b949e; }

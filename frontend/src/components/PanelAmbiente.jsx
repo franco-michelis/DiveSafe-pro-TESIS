@@ -151,7 +151,6 @@ export default function PanelAmbiente({ sitio, ambiente, cargando, error, onActu
           icono="ti-eye"
           titulo="Visibilidad bajo el agua"
           badge={visibilidadValida ? BADGE.visibilidad(visibilidad) : null}
-          sub="La cargás vos: ninguna API gratuita mide la visibilidad bajo el agua."
           clase="amb-manual-card"
         >
           <CampoManual campo="visibilidad" placeholder="Obligatoria" mostrarError={form.visibilidad !== ''} {...comunes} />

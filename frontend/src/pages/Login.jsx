@@ -60,11 +60,6 @@ export default function Login() {
             {cargando ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
-
-        <div className="login-hint">
-          Prototipo de tesis — usuarios de prueba:<br />
-          Administrador: Franco / 123 · Instructor: Beto / 123
-        </div>
       </div>
     </div>
   );
